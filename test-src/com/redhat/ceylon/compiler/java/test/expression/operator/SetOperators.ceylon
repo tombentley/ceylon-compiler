@@ -20,7 +20,11 @@
 @nomodel
 shared class SetOperators() {
 
-    void testSetOperatorsWithSameTypes(Set<Integer> a, Set<Integer> b) {
+    void m1(Set<Integer> a, Set<Integer> b) {
+        Set<Integer> s1 = a | b;
+        Set<Integer> s2 = a & b;
+        Set<Integer> s3 = a ^ b;
+        Set<Integer> s4 = a ~ b;
         variable Set<Integer> sync;
         sync := a | b;
         sync := a & b;
@@ -32,13 +36,51 @@ shared class SetOperators() {
         sync ~= a;
     }
 
-    void testSetOperatorsWithDifferentTypes(Set<Integer> a, Set<Float> b) {
-        variable Set<Integer|Float> x1 := a | b;
-        variable Set<Integer&Float> x2 := a & b;
-        variable Set<Integer|Float> x3 := a ^ b;
-        variable Set<Integer> x4 := a ~ b;
-        x4 &= b;
-        x4 ~= b;
+    void m2(Set<Integer> a, Set<Float> b) {
+        Set<Integer|Float> x1 = a | b;
+        Set<Integer&Float> x2 = a & b;
+        Set<Integer|Float> x3 = a ^ b;
+        Set<Integer> x4 = a ~ b;
+        variable value x5 := x1;
+        x5 |= a;
+        variable value x6 := x1;
+        x6 &= b;
+        variable value x7 := x3;
+        x7 ^= b;
+        variable value x8 := x4;
+        x8 ~= b;
     }
-
+    
+    void m3(Set<Integer> a, Set<Bottom> b) {
+        Set<Integer> s1 = a | b;
+        Set<Bottom> s2 = a & b;
+        Set<Integer> s3 = a ^ b;
+        Set<Integer> s4 = a ~ b;
+        variable Set<Integer> sync;
+        sync := a | b;
+        sync := a & b;
+        sync := a ^ b;
+        sync := a ~ b;
+        sync |= a;
+        sync &= a;
+        sync ^= a;
+        sync ~= a;
+    }
+    
+    void m4<T>(Set<Object> a, Set<T> b) 
+            given T satisfies Object{
+        Set<Object> s1 = a | b;
+        Set<T> s2 = a & b;
+        Set<Object> s3 = a ^ b;
+        Set<Object> s4 = a ~ b;
+        variable Set<Object> sync;
+        sync := a | b;
+        sync := a & b;
+        sync := a ^ b;
+        sync := a ~ b;
+        sync |= a;
+        sync &= a;
+        sync ^= a;
+        sync ~= a;
+    }
 }
