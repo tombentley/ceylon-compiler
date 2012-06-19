@@ -781,8 +781,10 @@ public class ExpressionTransformer extends AbstractTransformer {
     
     public JCExpression transform(Tree.BitwiseOp op) {
     	JCExpression result = transformOverridableBinaryOperator(op, null, null);
-    	JCExpression expectedType = makeJavaType(op.getTypeModel());
-    	return make().TypeCast(expectedType, result);
+    	final ProducedType elementType = typeFact().getSetElementType(op.getTypeModel());
+        JCExpression expectedType = makeJavaType(op.getTypeModel(), 
+                typeFact().getBottomDeclaration().getType().isExactly(elementType) ? JT_RAW : 0);
+        return make().TypeCast(expectedType, result);
     }    
 
     // Overridable binary operators
@@ -900,7 +902,9 @@ public class ExpressionTransformer extends AbstractTransformer {
             @Override
             public JCExpression getNewValue(JCExpression previousValue) {
             	JCExpression result = transformOverridableBinaryOperator(op, operator.binaryOperator, OptimisationStrategy.NONE, previousValue, null);
-            	JCExpression expectedType = makeJavaType(op.getTypeModel());
+            	final ProducedType elementType = typeFact().getSetElementType(op.getTypeModel());
+            	JCExpression expectedType = makeJavaType(op.getTypeModel(), 
+            	        typeFact().getBottomDeclaration().getType().isExactly(elementType) ? JT_RAW : 0);
             	return make().TypeCast(expectedType, result);
             }
         });
