@@ -17,17 +17,28 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
  * MA  02110-1301, USA.
  */
+@nomodel
 shared class SetOperators() {
-    
-    void set(Set<Integer> a, Set<Integer> b) {
+
+    void testSetOperatorsWithSameTypes(Set<Integer> a, Set<Integer> b) {
         variable Set<Integer> sync;
         sync := a | b;
         sync := a & b;
-        sync := a & b;
+        sync := a ^ b;
         sync := a ~ b;
         sync |= a;
         sync &= a;
-        sync ~= a;
         sync ^= a;
+        sync ~= a;
     }
+
+    void testSetOperatorsWithDifferentTypes(Set<Integer> a, Set<Float> b) {
+        variable Set<Integer|Float> x1 := a | b;
+        variable Set<Integer&Float> x2 := a & b;
+        variable Set<Integer|Float> x3 := a ^ b;
+        variable Set<Integer> x4 := a ~ b;
+        x4 &= b;
+        x4 ~= b;
+    }
+
 }
