@@ -38,6 +38,7 @@ import com.sun.tools.javac.code.Attribute.RetentionPolicy;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.file.BaseFileObject;
+import com.sun.tools.javac.tree.JCTree.JCLiteral;
 import com.sun.tools.javac.util.*;
 
 import static com.sun.tools.javac.code.BoundKind.*;
@@ -509,6 +510,21 @@ public class ClassWriter extends ClassFile {
                 poolbuf.appendByte(CONSTANT_NameandType);
                 poolbuf.appendChar(pool.put(nt.name));
                 poolbuf.appendChar(pool.put(typeSig(nt.type)));
+            } else if (value instanceof InvokeDynamic) {
+                InvokeDynamic indy = (InvokeDynamic)value;
+                poolbuf.appendByte(CONSTANT_InvokeDynamic);
+                poolbuf.appendChar(indy.bsm.getIndex());
+                poolbuf.appendChar(pool.put(indy.nameAndType));
+            } else if (value instanceof MethodType) {
+                MethodType mt = (MethodType)value;
+                poolbuf.appendByte(CONSTANT_MethodType);
+                // XXX ??? vvv
+                poolbuf.appendChar(pool.put(names.fromString(mt.stringValue())));
+            } else if (value instanceof MethodHandle) {
+                MethodHandle mh = (MethodHandle)value;
+                poolbuf.appendByte(CONSTANT_MethodHandle);
+                poolbuf.appendByte(mh.referenceKind); 
+                poolbuf.appendChar(pool.put(mh.reference));
             } else if (value instanceof Integer) {
                 poolbuf.appendByte(CONSTANT_Integer);
                 poolbuf.appendInt(((Integer)value).intValue());
@@ -653,6 +669,9 @@ public class ClassWriter extends ClassFile {
             endAttr(alenIdx);
             acount++;
         }
+        //if ((flags & BOOTSTRAPINVOKEDYNAMIC) != 0) {
+           
+        //}
         return acount;
     }
 
@@ -1558,6 +1577,7 @@ public class ClassWriter extends ClassFile {
         acount += writeFlagAttrs(c.flags());
         acount += writeJavaAnnotations(c.getAnnotationMirrors());
         acount += writeEnclosingMethodAttribute(c);
+        acount += writeBootstrapMethodsAttribute(c);
 
         poolbuf.appendInt(JAVA_MAGIC);
         poolbuf.appendChar(target.minorVersion);
@@ -1576,6 +1596,23 @@ public class ClassWriter extends ClassFile {
 
         pool = c.pool = null; // to conserve space
      }
+
+    int writeBootstrapMethodsAttribute(ClassSymbol c) {
+        if (c.bsms == null || c.bsms.size() == 0) {
+            return 0;
+        }
+        int alenIdx = writeAttr(names.BootstrapMethods);
+        databuf.appendChar(c.bsms.size());
+        for (BootstrapMethod bsm : c.bsms) {
+            databuf.appendChar(pool.put(bsm.mh));
+            databuf.appendChar(bsm.bootstrapArguments.size());
+            for (Object staticArg : bsm.bootstrapArguments) {
+                databuf.appendChar(pool.put(((JCLiteral)staticArg).value));
+            }
+        }
+        endAttr(alenIdx);
+        return 1;
+    }
 
     int adjustFlags(final long flags) {
         int result = (int)flags;

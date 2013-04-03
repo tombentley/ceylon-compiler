@@ -32,6 +32,7 @@ import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.comp.*;
 import com.sun.tools.javac.tree.*;
 
@@ -2153,6 +2154,13 @@ public class Gen extends JCTree.Visitor {
             }
             result = items.
                 makeImmediateItem(sym.type, ((VarSymbol) sym).getConstValue());
+        } else if (allowInvokedynamic && sym.kind == MTH && ssym == syms.ceylonIndyType.tsym) {
+            base.drop();
+            JCIndy indy = (JCIndy)tree;
+            ClassFile.MethodHandle mh = new ClassFile.MethodHandle(indy.mhKind, TreeInfo.symbol(((JCMethodInvocation)indy.mhRef).meth));
+            ClassFile.BootstrapMethod bsm = new ClassFile.BootstrapMethod(mh, indy.bsmStatic);
+            bsm.setIndex(env.enclClass.sym.addBsm(bsm));
+            result = items.makeDynamicItem(sym, bsm); 
         } else {
             if (!accessSuper)
                 sym = binaryQualifier(sym, tree.selected.type);

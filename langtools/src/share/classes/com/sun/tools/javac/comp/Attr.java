@@ -33,6 +33,7 @@ import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Scope.DelegatedScope;
 import com.sun.tools.javac.jvm.*;
 import com.sun.tools.javac.tree.*;
+import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
@@ -2273,6 +2274,14 @@ public class Attr extends JCTree.Visitor {
         if (sym.exists() && !isType(sym) && (pkind & (PCK | TYP)) != 0) {
             site = capture(site);
             sym = selectSym(tree, sitesym, site, env, pt, pkind);
+        }
+        if (tree instanceof JCIndy) {
+            final JCExpression mhRef = ((JCIndy)tree).mhRef;
+            // Attribute the static arguments
+            Env<AttrContext> localEnv = env.dup(tree, env.info.dup());
+            attribArgs(((JCIndy)tree).bsmStatic, localEnv);
+            // Attribute the 'fake' invocation of the BSM 
+            mhRef.accept(this);
         }
         boolean varArgs = env.info.varArgs;
         tree.sym = sym;

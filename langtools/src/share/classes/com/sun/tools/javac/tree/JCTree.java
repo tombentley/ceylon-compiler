@@ -33,6 +33,7 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.type.TypeKind;
 import javax.tools.JavaFileObject;
 
+import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
 import com.sun.tools.javac.util.List;
@@ -1690,6 +1691,23 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             return SELECT;
         }
     }
+    
+    public static class JCIndy extends JCFieldAccess {
+        public int mhKind;
+        public JCExpression mhRef;
+        public List<JCExpression> bsmStatic;
+        protected JCIndy(JCExpression selected, Name name, Symbol sym,
+                int mhKind,
+                JCExpression mhRef,
+                List<JCExpression> bsmStatic) {
+            super(selected, name, sym);
+            this.mhKind = mhKind;
+            this.mhRef = mhRef;
+            this.bsmStatic = bsmStatic;
+        }
+    }
+
+   
 
     /**
      * An identifier

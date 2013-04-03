@@ -823,8 +823,25 @@ public class Pretty extends JCTree.Visitor {
         }
     }
 
+    private void printIndy(JCMethodInvocation tree) throws IOException {
+        JCIndy indy = (JCIndy)tree.meth;
+        print("Indy[#");
+        printExpr(((JCMethodInvocation)indy.mhRef).meth);
+        print(", ");
+        printExprs(indy.bsmStatic);
+        print("].");
+        print(((JCFieldAccess)tree.meth).name);
+        print("(");
+        printExprs(tree.args);
+        print(")");
+    }
+    
     public void visitApply(JCMethodInvocation tree) {
         try {
+            if (tree.meth instanceof JCIndy) {
+                printIndy(tree);
+                return;
+            }
             if (!tree.typeargs.isEmpty()) {
                 if (tree.meth.getTag() == JCTree.SELECT) {
                     JCFieldAccess left = (JCFieldAccess)tree.meth;

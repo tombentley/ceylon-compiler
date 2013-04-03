@@ -152,6 +152,7 @@ public class Names {
 
     // Ceylon additions
     public final Name ceylon_language;
+    public final Name BootstrapMethods;
 
     public final Name.Table table;
 
@@ -272,6 +273,7 @@ public class Names {
 
         // Ceylon additions
         ceylon_language = fromString("ceylon.language");
+        BootstrapMethods = fromString("BootstrapMethods");
     }
 
     protected Name.Table createTable(Options options) {

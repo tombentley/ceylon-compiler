@@ -330,7 +330,7 @@ public class TreeMaker implements JCTree.Factory {
         tree.pos = pos;
         return tree;
     }
-
+    
     public JCNewClass NewClass(JCExpression encl,
                              List<JCExpression> typeargs,
                              JCExpression clazz,
@@ -401,6 +401,19 @@ public class TreeMaker implements JCTree.Factory {
 
     public JCFieldAccess Select(JCExpression selected, Name selector) {
         JCFieldAccess tree = new JCFieldAccess(selected, selector, null);
+        tree.pos = pos;
+        return tree;
+    }
+    
+    public JCIndy Indy(JCExpression selected, Name selector, 
+            int mhKind,
+            JCExpression mhRef,
+            List<JCExpression> bsmStatic)
+    {
+        Assert.check(mhKind == 6 || mhKind == 8, 
+                "Bootstrap methods may only specify reference kind " +
+                "invokeStatic or newInvokeSpecial see 4.7.21");    
+        JCIndy tree = new JCIndy(selected, selector, null, mhKind, mhRef, bsmStatic);
         tree.pos = pos;
         return tree;
     }

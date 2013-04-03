@@ -397,6 +397,10 @@ public class Resolve {
         return mt;
     }
 
+    boolean isCeylonDynamic(Type site, Symbol sym) {
+        return site == syms.ceylonIndyType;
+    }
+    
     /** Same but returns null instead throwing a NoInstanceException
      */
     Type instantiate(Env<AttrContext> env,
@@ -1447,7 +1451,8 @@ public class Resolve {
             steps = steps.tail;
         }
         if (sym.kind >= AMBIGUOUS) {
-            if (site.tsym.isPolymorphicSignatureGeneric()) {
+            if (site.tsym.isPolymorphicSignatureGeneric()
+                    || isCeylonDynamic(site, sym)) {
                 //polymorphic receiver - synthesize new method symbol
                 env.info.varArgs = false;
                 sym = findPolymorphicSignatureInstance(env,

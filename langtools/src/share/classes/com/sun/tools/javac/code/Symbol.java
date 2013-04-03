@@ -37,6 +37,7 @@ import com.sun.tools.javac.comp.Attr;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.jvm.*;
+import com.sun.tools.javac.jvm.ClassFile.BootstrapMethod;
 import com.sun.tools.javac.model.*;
 import com.sun.tools.javac.tree.JCTree;
 
@@ -728,6 +729,8 @@ public abstract class Symbol implements Element {
         /** the constant pool of the class
          */
         public Pool pool;
+        
+        public List<BootstrapMethod> bsms;
 
         public ClassSymbol(long flags, Name name, Type type, Symbol owner) {
             super(flags, name, type, owner);
@@ -889,6 +892,15 @@ public abstract class Symbol implements Element {
         public <R, P> R accept(Symbol.Visitor<R, P> v, P p) {
             return v.visitClassSymbol(this, p);
         }
+
+        public int addBsm(BootstrapMethod bsm) {
+            if (bsms == null) {
+                bsms = List.of(bsm);
+            } else if (!bsms.contains(bsm)) {
+                bsms = bsms.append(bsm);
+            }
+            return bsms.indexOf(bsm);
+        }
     }
 
 
@@ -1036,6 +1048,12 @@ public abstract class Symbol implements Element {
          *  declaration.
          */
         public Attribute defaultValue = null;
+
+        public int mhKind;
+
+        public Symbol mhRef;
+
+        public List<Object> bsmStatic;
 
         /** Construct a method symbol, given its flags, name, type and owner.
          */

@@ -25,7 +25,14 @@
 
 package com.sun.tools.javac.jvm;
 
+import static com.sun.tools.javac.code.Flags.INTERFACE;
+
+import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Symbol.MethodSymbol;
+import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Type;
+import com.sun.tools.javac.util.Assert;
+import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Name;
 
 
@@ -171,6 +178,101 @@ public class ClassFile {
 
         public int hashCode() {
             return name.hashCode() * type.hashCode();
+        }
+    }
+    
+    public static class InvokeDynamic {
+        BootstrapMethod bsm;
+        NameAndType nameAndType;
+        
+        InvokeDynamic(BootstrapMethod bsm, NameAndType nameAndType) {
+            this.bsm = bsm;
+            this.nameAndType = nameAndType;
+        }
+        
+        public boolean equals(Object other) {
+            return other instanceof InvokeDynamic
+                    && bsm.equals(((InvokeDynamic)other).bsm)
+                    && nameAndType.equals(((InvokeDynamic)other).nameAndType);
+        }
+        
+        public int hashCode() {
+            return bsm.hashCode() ^ nameAndType.hashCode();
+        }
+    }
+    
+    public static class MethodHandle {
+        int referenceKind;
+        Symbol reference;
+        // VarSymbol
+        
+        public MethodHandle(int referenceKind, Symbol reference) {
+            this.referenceKind = referenceKind;
+            if (referenceKind >= 1 && referenceKind <= 4) {
+                Assert.check(reference instanceof VarSymbol);
+            } else if (referenceKind >= 5 && referenceKind <= 8) {
+                Assert.check(reference instanceof MethodSymbol
+                        && (((MethodSymbol)reference).owner.flags() & INTERFACE) == 0);
+            } else if (referenceKind == 9) {
+                Assert.check(reference instanceof MethodSymbol
+                        && (((MethodSymbol)reference).owner.flags() & INTERFACE) != 0);
+            } else {
+                Assert.error("Unexpected reference kind " + referenceKind);
+            }
+            if (referenceKind ==5
+                    || referenceKind == 6
+                    || referenceKind == 7
+                    || referenceKind == 9) {
+                final Name name = ((MethodSymbol)reference).name;
+                Assert.check(!name.contentEquals("<init>")
+                        && !name.contentEquals("<cinit>"));
+            } else if (referenceKind == 8) {
+                final Name name = ((MethodSymbol)reference).name;
+                Assert.check(name.contentEquals("<init>"));
+            }
+            this.reference = reference;
+        }
+        
+        public boolean equals(Object other) {
+            return other instanceof MethodHandle
+                    && referenceKind == ((MethodHandle)other).referenceKind
+                    && reference.equals(((MethodHandle)other).reference);
+        }
+        
+        public int hashCode() {
+            return referenceKind ^ reference.hashCode();
+        }
+    }
+    
+    public static class BootstrapMethod {
+        MethodHandle mh;
+        List<?> bootstrapArguments;
+        // String, Integer, Double, Float, Long, 
+        // Type, MethodHandle, MethodType, 
+        private int index = -1;
+        
+        BootstrapMethod(MethodHandle mh, List<?> bootstrapArguments) {
+            this.mh = mh;
+            this.bootstrapArguments = bootstrapArguments;
+        }
+        
+        public boolean equals(Object other) {
+            return other instanceof BootstrapMethod
+                    && mh.equals(((BootstrapMethod)other).mh)
+                    && bootstrapArguments.equals(((BootstrapMethod)other).bootstrapArguments);
+        }
+        
+        public int hashCode() {
+            return mh.hashCode() ^ bootstrapArguments.hashCode();
+        }
+        
+        public int getIndex() {
+            Assert.check(index >= 0);
+            return index;
+        }
+        
+        public void setIndex(int index) {
+            this.index = index;
         }
     }
 }

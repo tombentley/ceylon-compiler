@@ -186,12 +186,13 @@ public class Symtab {
     public  Type ceylonEnumeratedTypeErrorType;
     public  Type ceylonUninitializedMethodErrorType;
     public  Type ceylonAbstractCallableType;
+
     public  Type ceylonVariableBoxType;
     public  Type ceylonVariableBoxLongType;
     public  Type ceylonVariableBoxIntType;
     public  Type ceylonVariableBoxDoubleType;
     public  Type ceylonVariableBoxBooleanType;
-    
+    public  Type ceylonIndyType;
     public final Type ceylonAtCeylonType;
     public final Type ceylonAtModuleType;
     public final Type ceylonAtPackageType;
@@ -815,5 +816,6 @@ public class Symtab {
         ceylonVariableBoxIntType = enterClass("com.redhat.ceylon.compiler.java.language.VariableBoxInt");
         ceylonVariableBoxDoubleType = enterClass("com.redhat.ceylon.compiler.java.language.VariableBoxDouble");
         ceylonVariableBoxBooleanType = enterClass("com.redhat.ceylon.compiler.java.language.VariableBoxBoolean");
+        ceylonIndyType = enterClass("com.redhat.ceylon.compiler.java.Indy");
     }
 }
