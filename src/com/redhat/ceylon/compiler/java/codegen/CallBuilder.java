@@ -250,4 +250,8 @@ public class CallBuilder {
     public void voidMethod(boolean voidMethod) {
         this.voidMethod = voidMethod;
     }
+    
+    public List<JCExpression> getArguments() {
+        return ExpressionAndType.toExpressionList(this.argumentsAndTypes);
+    }
 }

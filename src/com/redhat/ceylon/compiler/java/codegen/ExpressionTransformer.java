@@ -2193,6 +2193,18 @@ public class ExpressionTransformer extends AbstractTransformer {
             callBuilder.invoke(naming.makeQuotedQualIdent(primTypeExpr, transformedPrimary.selector));
 
         } else {
+            if ("com.redhat.ceylon.compiler.java.test.expression.indy::C.m".equals(invocation.getPrimaryDeclaration().getQualifiedNameString())) {
+                JCExpression qual = transformedPrimary.expr;
+                if (qual == null) {
+                    qual = naming.makeThis();
+                }
+                return makeIndy(qual, transformedPrimary.selector, 
+                        callBuilder.getArguments().append(makeBoolean(true)),
+                        MhKind.INVOKE_STATIC,
+                        makeQuotedFQIdent("com.redhat.ceylon.compiler.java.Bsms.bsm"),
+                        List.<JCExpression>of(make().Literal("hello, world")));
+            }
+            
             callBuilder.invoke(naming.makeQuotedQualIdent(transformedPrimary.expr, transformedPrimary.selector));
         }
         return callBuilder.build();
