@@ -83,6 +83,7 @@ import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
 import com.sun.tools.javac.tree.JCTree.JCLiteral;
+import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
 import com.sun.tools.javac.tree.JCTree.JCStatement;
 import com.sun.tools.javac.tree.JCTree.JCTypeParameter;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
@@ -3029,5 +3030,46 @@ public abstract class AbstractTransformer implements Transformation {
                 && decl.getTypeParameters().isEmpty()
                 && supportsReified(decl)
                 && Decl.isToplevel(decl);
+    }
+
+    static enum MhKind {
+        GET_FIELD(1),
+        GET_STATIC(2),
+        PUT_FIELD(3),
+        PUT_STATIC(4),
+        INVOKE_VIRTUAL(5),
+        INVOKE_STATIC(6),
+        INVOKE_SPECIAL(7),
+        NEW_INVOKE_SPECIAL(8),
+        INVOKE_INTERFACE(9);
+        final int code;
+        private MhKind(int code) {
+            this.code = code;
+        }
+    }
+    
+    /**
+     * Makes an invokedynamic callsite.
+     */
+    public JCExpression makeIndy(
+            JCExpression primary,
+            String methodName,
+            List<JCExpression> args,
+            MhKind bsmKind,
+            JCExpression bsmMethod,
+            List<JCExpression> bsmStaticArgs) {
+        ListBuffer<JCExpression> lb = ListBuffer.<JCExpression>lb();
+        for (int ii = 0; ii < bsmStaticArgs.size()+3; ii++) {
+            lb.append(makeNull());
+        }
+        return make().Apply(null, 
+                make().Indy(makeQuotedFQIdent("com.redhat.ceylon.compiler.java.Indy"), 
+                        names.fromString(methodName),
+                        bsmKind.code,
+                        make.Apply(null, 
+                                bsmMethod, 
+                                lb.toList()),
+                        bsmStaticArgs),
+                args.prepend(primary));
     }
 }
