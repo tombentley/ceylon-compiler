@@ -30,6 +30,7 @@ import com.redhat.ceylon.cmr.api.Logger;
 import com.redhat.ceylon.cmr.api.ModuleInfo;
 import com.redhat.ceylon.cmr.api.RepositoryManager;
 import com.redhat.ceylon.cmr.ceylon.CeylonUtils;
+import com.redhat.ceylon.cmr.ceylon.CeylonUtils.CeylonRepoManagerBuilder;
 import com.redhat.ceylon.cmr.impl.CMRException;
 import com.redhat.ceylon.cmr.impl.PropertiesDependencyResolver;
 import com.redhat.ceylon.cmr.impl.XmlDependencyResolver;
@@ -58,6 +59,7 @@ public class CeylonImportJarTool extends CeylonBaseTool {
     private String jarFile;
     private Logger log = new CMRLogger();
     private String descriptor;
+    private CeylonRepoManagerBuilder repoManager;
 
     public CeylonImportJarTool() {
     }
@@ -156,6 +158,12 @@ public class CeylonImportJarTool extends CeylonBaseTool {
         if(!f.getName().toLowerCase().endsWith(".jar"))
             throw new ImportJarException("error.jarFile.notJar", new Object[]{f.toString()}, null);
         
+        this.repoManager = CeylonUtils.repoManager()
+                .cwd(cwd)
+                .outRepo(this.out)
+                .logger(log)
+                .user(user)
+                .password(pass);
         if (getDescriptorFile() != null) {
             File descriptorFile = getDescriptorFile();
             checkReadableFile(descriptorFile, "error.descriptorFile");
@@ -163,11 +171,8 @@ public class CeylonImportJarTool extends CeylonBaseTool {
                     isPropertiesDescriptor())) {
                 throw new ImportJarException("error.descriptorFile.badSuffix", new Object[]{descriptorFile.getPath()}, null);
             }
-            RepositoryManager repository = CeylonUtils.repoManager()
-                    .logger(log)
-                    .user(user)
-                    .password(pass)
-                    .buildManager();
+            
+            RepositoryManager repository = repoManager.buildManager();
             if(isXmlDescriptor())
                 checkModuleXml(repository, descriptorFile);
             else if(isPropertiesDescriptor())
@@ -185,12 +190,8 @@ public class CeylonImportJarTool extends CeylonBaseTool {
     }
     
     public void publish() {
-        RepositoryManager outputRepository = CeylonUtils.repoManager()
-                .cwd(cwd)
+        RepositoryManager outputRepository = this.repoManager
                 .outRepo(this.out)
-                .logger(log)
-                .user(user)
-                .password(pass)
                 .buildOutputManager();
 
         ArtifactContext context = new ArtifactContext(module.getName(), module.getVersion(), ArtifactContext.JAR);
