@@ -107,6 +107,23 @@ public class CeylonImportJarTool extends CeylonBaseTool {
         this.descriptor = descriptor;
     }
     
+    public File getDescriptorFile() {
+        if (this.descriptor == null) {
+            return null;
+        }
+        return new File(this.cwd, this.descriptor);
+    }
+    
+    public boolean isXmlDescriptor() {
+        return this.descriptor != null 
+                && this.descriptor.toLowerCase().endsWith(".xml");
+    }
+    
+    public boolean isPropertiesDescriptor() {
+        return this.descriptor != null 
+                && this.descriptor.toLowerCase().endsWith(".properties");
+    }
+    
     @Argument(argumentName="module", multiplicity="1", order=0)
     public void setModuleSpec(String module) {
         setModuleSpec(ModuleSpec.parse(module, 
@@ -132,21 +149,22 @@ public class CeylonImportJarTool extends CeylonBaseTool {
         if(!f.getName().toLowerCase().endsWith(".jar"))
             throw new ImportJarException("error.jarFile.notJar", new Object[]{f.toString()}, null);
         
-        if (descriptor != null) {
-            checkReadableFile(new File(descriptor), "error.descriptorFile");
-            if(!(descriptor.toLowerCase().endsWith(".xml") ||
-                    descriptor.toLowerCase().endsWith(".properties")))
-                throw new ImportJarException("error.descriptorFile.badSuffix", new Object[]{descriptor}, null);
-            
+        if (getDescriptorFile() != null) {
+            File descriptorFile = getDescriptorFile();
+            checkReadableFile(descriptorFile, "error.descriptorFile");
+            if(!(isXmlDescriptor() ||
+                    isPropertiesDescriptor())) {
+                throw new ImportJarException("error.descriptorFile.badSuffix", new Object[]{descriptorFile.getPath()}, null);
+            }
             RepositoryManager repository = CeylonUtils.repoManager()
                     .logger(log)
                     .user(user)
                     .password(pass)
                     .buildManager();
-            if(descriptor.toLowerCase().endsWith(".xml"))
-                checkModuleXml(repository, descriptor);
-            else if(descriptor.toLowerCase().endsWith(".properties"))
-                checkModuleProperties(repository, descriptor);
+            if(isXmlDescriptor())
+                checkModuleXml(repository, descriptorFile);
+            else if(isPropertiesDescriptor())
+                checkModuleProperties(repository, descriptorFile);
         }
     }
 
@@ -171,10 +189,10 @@ public class CeylonImportJarTool extends CeylonBaseTool {
         ArtifactContext context = new ArtifactContext(module.getName(), module.getVersion(), ArtifactContext.JAR);
         context.setForceOperation(true);
         ArtifactContext descriptorContext = null;
-        if (descriptor != null) {
-            if (descriptor.toLowerCase().endsWith(".xml")) {
+        if (getDescriptorFile() != null) {
+            if (isXmlDescriptor()) {
                 descriptorContext = new ArtifactContext(module.getName(), module.getVersion(), ArtifactContext.MODULE_XML);
-            } else if (descriptor.toLowerCase().endsWith(".properties")) {
+            } else if (isPropertiesDescriptor()) {
                 descriptorContext = new ArtifactContext(module.getName(), module.getVersion(), ArtifactContext.MODULE_PROPERTIES);
             }
             descriptorContext.setForceOperation(true);
@@ -195,7 +213,7 @@ public class CeylonImportJarTool extends CeylonBaseTool {
             }
             
             if (descriptorContext != null) {
-                outputRepository.putArtifact(descriptorContext, new File(descriptor));
+                outputRepository.putArtifact(descriptorContext, getDescriptorFile());
             }
         }catch(CMRException x){
             throw new ImportJarException("error.failedWriteArtifact", new Object[]{context, x.getLocalizedMessage()}, x);
@@ -205,27 +223,25 @@ public class CeylonImportJarTool extends CeylonBaseTool {
         }
     }
     
-    private void checkModuleProperties(RepositoryManager repository, String propertiesPath) {
-        File file = new File(propertiesPath);
+    private void checkModuleProperties(RepositoryManager repository, File file) {
         try{
             Set<ModuleInfo> dependencies = PropertiesDependencyResolver.INSTANCE.resolveFromFile(file);
             checkDependencies(repository, dependencies);
         }catch(ImportJarException x){
             throw x;
         }catch(Exception x){
-            throw new ImportJarException("error.descriptorFile.invalid.properties", new Object[]{propertiesPath}, x);
+            throw new ImportJarException("error.descriptorFile.invalid.properties", new Object[]{file.getPath()}, x);
         }
     }
 
-    private void checkModuleXml(RepositoryManager repository, String propertiesPath) {
-        File file = new File(propertiesPath);
+    private void checkModuleXml(RepositoryManager repository, File file) {
         try{
             Set<ModuleInfo> dependencies = XmlDependencyResolver.INSTANCE.resolveFromFile(file);
             checkDependencies(repository, dependencies);
         }catch(ImportJarException x){
             throw x;
         }catch(Exception x){
-            throw new ImportJarException("error.descriptorFile.invalid.xml", new Object[]{propertiesPath, x.getMessage()}, x);
+            throw new ImportJarException("error.descriptorFile.invalid.xml", new Object[]{file.getPath(), x.getMessage()}, x);
         }
     }
 
