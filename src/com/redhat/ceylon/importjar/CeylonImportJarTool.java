@@ -20,6 +20,7 @@
 package com.redhat.ceylon.importjar;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Set;
 
 import javax.annotation.PostConstruct;
@@ -52,6 +53,7 @@ import com.redhat.ceylon.tools.ModuleSpec;
         "`<jar-file>` is the name of the Jar file to import.")
 public class CeylonImportJarTool extends CeylonBaseTool {
 
+    private Appendable err = System.err;
     private ModuleSpec module;
     private String out;
     private String user;
@@ -72,6 +74,10 @@ public class CeylonImportJarTool extends CeylonBaseTool {
         this.jarFile = jarFile;
         this.verbose = verbose;
         init();
+    }
+    
+    public void setErr(Appendable err) {
+        this.err = err;
     }
 
     @OptionArgument(argumentName="name")
@@ -253,11 +259,11 @@ public class CeylonImportJarTool extends CeylonBaseTool {
         }
     }
 
-    private void checkDependencies(RepositoryManager repository, Set<ModuleInfo> dependencies) {
+    private void checkDependencies(RepositoryManager repository, Set<ModuleInfo> dependencies) throws IOException {
         if(dependencies.isEmpty()){
-            System.err.println("[WARNING] Empty dependencies file");
+            err.append("[WARNING] Empty dependencies file").append(System.lineSeparator());
         }else{
-            System.err.println("Checking declared dependencies:");
+            err.append("Checking declared dependencies:").append(System.lineSeparator());
             for(ModuleInfo dep : dependencies){
                 String name = dep.getName();
                 String version = dep.getVersion();
@@ -268,17 +274,17 @@ public class CeylonImportJarTool extends CeylonBaseTool {
                     throw new ImportJarException("error.descriptorFile.invalid.module.default");
                 if(version == null || version.isEmpty())
                     throw new ImportJarException("error.descriptorFile.invalid.module.version", new Object[]{version}, null);
-                System.err.print("- "+dep+" ");
+                err.append("- "+dep+" ");
                 if(JDKUtils.isJDKModule(name) || JDKUtils.isOracleJDKModule(name))
-                    System.err.println("[OK]");
+                    err.append("[OK]").append(System.lineSeparator());
                 else{
-                    System.err.print("... [");
+                    err.append("... [");
                     ArtifactContext context = new ArtifactContext(name, dep.getVersion(), ArtifactContext.CAR, ArtifactContext.JAR);
                     File artifact = repository.getArtifact(context);
                     if(artifact != null && artifact.exists())
-                        System.err.println("OK]");
+                        err.append("OK]").append(System.lineSeparator());
                     else
-                        System.err.println("NOT FOUND]");
+                        err.append("NOT FOUND]").append(System.lineSeparator());
                 }
             }
         }
