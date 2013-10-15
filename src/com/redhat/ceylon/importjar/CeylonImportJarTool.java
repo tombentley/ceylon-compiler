@@ -21,6 +21,11 @@ package com.redhat.ceylon.importjar;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 import javax.annotation.PostConstruct;
@@ -38,9 +43,12 @@ import com.redhat.ceylon.cmr.impl.XmlDependencyResolver;
 import com.redhat.ceylon.common.tool.Argument;
 import com.redhat.ceylon.common.tool.CeylonBaseTool;
 import com.redhat.ceylon.common.tool.Description;
+import com.redhat.ceylon.common.tool.Option;
 import com.redhat.ceylon.common.tool.OptionArgument;
 import com.redhat.ceylon.common.tool.Summary;
+import com.redhat.ceylon.compiler.java.loader.CeylonModelLoader;
 import com.redhat.ceylon.tools.ModuleSpec;
+import com.sun.tools.classfile.ClassReader;
 
 @Summary("Imports a jar file into a Ceylon module repository")
 @Description("Imports the given `<jar-file>` using the module name and version " +
@@ -62,6 +70,7 @@ public class CeylonImportJarTool extends CeylonBaseTool {
     private Logger log = new CMRLogger();
     private String descriptor;
     private CeylonRepoManagerBuilder repoManager;
+    private boolean verify = true;
 
     public CeylonImportJarTool() {
     }
@@ -115,6 +124,13 @@ public class CeylonImportJarTool extends CeylonBaseTool {
         this.descriptor = descriptor;
     }
     
+    @Option
+    @Description("Whether the verification of the dependencies of the jar "
+            + "file should be skipped (default: false).")
+    public void setNoVerify(boolean noVerify) {
+        this.verify = !noVerify;
+    }
+    
     public File getDescriptorFile() {
         if (this.descriptor == null) {
             return null;
@@ -157,12 +173,6 @@ public class CeylonImportJarTool extends CeylonBaseTool {
     
     @PostConstruct
     public void init() {
-        if(this.jarFile == null || this.jarFile.isEmpty())
-            throw new ImportJarException("error.jarFile.empty");
-        File f = getJarFile();
-        checkReadableFile(f, "error.jarFile");
-        if(!f.getName().toLowerCase().endsWith(".jar"))
-            throw new ImportJarException("error.jarFile.notJar", new Object[]{f.toString()}, null);
         
         this.repoManager = CeylonUtils.repoManager()
                 .cwd(cwd)
@@ -170,20 +180,6 @@ public class CeylonImportJarTool extends CeylonBaseTool {
                 .logger(log)
                 .user(user)
                 .password(pass);
-        if (getDescriptorFile() != null) {
-            File descriptorFile = getDescriptorFile();
-            checkReadableFile(descriptorFile, "error.descriptorFile");
-            if(!(isXmlDescriptor() ||
-                    isPropertiesDescriptor())) {
-                throw new ImportJarException("error.descriptorFile.badSuffix", new Object[]{descriptorFile.getPath()}, null);
-            }
-            
-            RepositoryManager repository = repoManager.buildManager();
-            if(isXmlDescriptor())
-                checkModuleXml(repository, descriptorFile);
-            else if(isPropertiesDescriptor())
-                checkModuleProperties(repository, descriptorFile);
-        }
     }
 
     private void checkReadableFile(File f, String keyPrefix) {
@@ -195,7 +191,47 @@ public class CeylonImportJarTool extends CeylonBaseTool {
             throw new ImportJarException(keyPrefix + ".notReadable", new Object[]{f.toString()}, null);
     }
     
+    void err(String s) {
+        try {
+            this.err.append(s).append(System.lineSeparator());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    
     public void publish() {
+        if(this.jarFile == null || this.jarFile.isEmpty())
+            throw new ImportJarException("error.jarFile.empty");
+        File f = getJarFile();
+        checkReadableFile(f, "error.jarFile");
+        if(!f.getName().toLowerCase().endsWith(".jar"))
+            throw new ImportJarException("error.jarFile.notJar", new Object[]{f.toString()}, null);
+        
+        List<File> dependentJars = Collections.emptyList();
+        if (getDescriptorFile() != null) {
+            File descriptorFile = getDescriptorFile();
+            checkReadableFile(descriptorFile, "error.descriptorFile");
+            if(!(isXmlDescriptor() ||
+                    isPropertiesDescriptor())) {
+                throw new ImportJarException("error.descriptorFile.badSuffix", new Object[]{descriptorFile.getPath()}, null);
+            }
+            
+            RepositoryManager repository = repoManager.buildManager();
+            if(isXmlDescriptor())
+                dependentJars = checkModuleXml(repository, descriptorFile);
+            else if(isPropertiesDescriptor())
+                dependentJars = checkModuleProperties(repository, descriptorFile);
+        }
+        
+        if (verify) {
+            final int errors = verify(f, dependentJars);
+            
+            if (errors > 0) {
+                throw new ImportJarException("verifyErrors", new Object[]{errors}, null);
+            }
+        }
+        
+        
         RepositoryManager outputRepository = this.repoManager
                 .outRepo(this.out)
                 .buildOutputManager();
@@ -211,6 +247,8 @@ public class CeylonImportJarTool extends CeylonBaseTool {
             }
             descriptorContext.setForceOperation(true);
         }
+        
+        
         try{
             outputRepository.putArtifact(context, getJarFile());
             String sha1 = ShaSigner.sha1(getJarFile().getPath(), log);
@@ -236,11 +274,61 @@ public class CeylonImportJarTool extends CeylonBaseTool {
             throw new ImportJarException("error.failedWriteArtifact", new Object[]{context, x.getLocalizedMessage()}, x);
         }
     }
+
+    private int verify(File f, List<File> dependentJars) {
+        final int[] errors = new int[]{0};
+        new ApiVerifier(new ApiHandler() {
+            
+            @Override
+            public void missingImplModule(String moduleName) {
+                err(ImportJarMessages.msg("verify.missing.impl.module", moduleName));
+                errors[0]++;
+            }
+            
+            @Override
+            public void missingImplClass(String className) {
+                err(ImportJarMessages.msg("verify.missing.impl.class", className));
+                errors[0]++;
+            }
+            
+            @Override
+            public void missingApiModule(String moduleName) {
+                err(ImportJarMessages.msg("verify.missing.api.module", moduleName));
+                errors[0]++;
+            }
+            
+            @Override
+            public void missingApiClass(String className) {
+                err(ImportJarMessages.msg("verify.missing.api.class", className));
+                errors[0]++;
+            }
+            
+            @Override
+            public void linkError(String className, String missingClassName) {
+                err(ImportJarMessages.msg("verify.missing.dependent.class", missingClassName));
+                errors[0]++;
+            }
+            
+            @Override
+            public void error(String s, Throwable cause) {
+                StringWriter sw = new StringWriter();
+                PrintWriter pw = new PrintWriter(sw);
+                cause.printStackTrace(pw);
+                pw.flush();
+                err(ImportJarMessages.msg("verify.internal.error", s, cause.toString(), pw));
+                errors[0]++;
+            }
+            @Override
+            public void debug(Object s) {
+            }
+        }, f, dependentJars);
+        return errors[0];
+    }
     
-    private void checkModuleProperties(RepositoryManager repository, File file) {
+    private List<File> checkModuleProperties(RepositoryManager repository, File file) {
         try{
             Set<ModuleInfo> dependencies = PropertiesDependencyResolver.INSTANCE.resolveFromFile(file);
-            checkDependencies(repository, dependencies);
+            return checkDependencies(repository, dependencies);
         }catch(ImportJarException x){
             throw x;
         }catch(Exception x){
@@ -248,10 +336,10 @@ public class CeylonImportJarTool extends CeylonBaseTool {
         }
     }
 
-    private void checkModuleXml(RepositoryManager repository, File file) {
+    private List<File> checkModuleXml(RepositoryManager repository, File file) {
         try{
             Set<ModuleInfo> dependencies = XmlDependencyResolver.INSTANCE.resolveFromFile(file);
-            checkDependencies(repository, dependencies);
+            return checkDependencies(repository, dependencies);
         }catch(ImportJarException x){
             throw x;
         }catch(Exception x){
@@ -259,7 +347,8 @@ public class CeylonImportJarTool extends CeylonBaseTool {
         }
     }
 
-    private void checkDependencies(RepositoryManager repository, Set<ModuleInfo> dependencies) throws IOException {
+    private List<File> checkDependencies(RepositoryManager repository, Set<ModuleInfo> dependencies) throws IOException {
+        ArrayList<File> dependentJars = new ArrayList<File>();
         if(dependencies.isEmpty()){
             err.append("[WARNING] Empty dependencies file").append(System.lineSeparator());
         }else{
@@ -281,6 +370,7 @@ public class CeylonImportJarTool extends CeylonBaseTool {
                     err.append("... [");
                     ArtifactContext context = new ArtifactContext(name, dep.getVersion(), ArtifactContext.CAR, ArtifactContext.JAR);
                     File artifact = repository.getArtifact(context);
+                    dependentJars.add(artifact);
                     if(artifact != null && artifact.exists())
                         err.append("OK]").append(System.lineSeparator());
                     else
@@ -288,6 +378,7 @@ public class CeylonImportJarTool extends CeylonBaseTool {
                 }
             }
         }
+        return dependentJars;
     }
 
     @Override
