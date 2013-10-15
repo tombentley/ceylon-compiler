@@ -136,15 +136,22 @@ public class CeylonImportJarTool extends CeylonBaseTool {
     }
 
     @Argument(argumentName="jar-file", multiplicity="1", order=1)
-    public void setFile(String jarFile) {
+    public void setJar(String jarFile) {
         this.jarFile = jarFile;
+    }
+    
+    public File getJarFile() {
+        if (this.jarFile == null) {
+            return null;
+        }
+        return new File(this.cwd, this.jarFile);
     }
     
     @PostConstruct
     public void init() {
-        if(jarFile == null || jarFile.isEmpty())
+        if(this.jarFile == null || this.jarFile.isEmpty())
             throw new ImportJarException("error.jarFile.empty");
-        File f = new File(jarFile);
+        File f = getJarFile();
         checkReadableFile(f, "error.jarFile");
         if(!f.getName().toLowerCase().endsWith(".jar"))
             throw new ImportJarException("error.jarFile.notJar", new Object[]{f.toString()}, null);
@@ -198,8 +205,8 @@ public class CeylonImportJarTool extends CeylonBaseTool {
             descriptorContext.setForceOperation(true);
         }
         try{
-            outputRepository.putArtifact(context, new File(jarFile));
-            String sha1 = ShaSigner.sha1(jarFile, log);
+            outputRepository.putArtifact(context, getJarFile());
+            String sha1 = ShaSigner.sha1(getJarFile().getPath(), log);
             if(sha1 != null){
                 File shaFile = ShaSigner.writeSha1(sha1, log);
                 if(shaFile != null){
