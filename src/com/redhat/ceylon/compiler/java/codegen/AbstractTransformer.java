@@ -93,6 +93,7 @@ import com.sun.tools.javac.tree.JCTree.JCBinary;
 import com.sun.tools.javac.tree.JCTree.JCBlock;
 import com.sun.tools.javac.tree.JCTree.JCCase;
 import com.sun.tools.javac.tree.JCTree.JCExpression;
+import com.sun.tools.javac.tree.JCTree.JCExpressionStatement;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
 import com.sun.tools.javac.tree.JCTree.JCLiteral;
@@ -3984,6 +3985,10 @@ public abstract class AbstractTransformer implements Transformation {
         return makeJavaType(syms().ceylonReifiedTypeType.tsym);
     }
     
+    public JCExpression makeSerializableType(){
+        return makeJavaType(syms().ceylonSerializableType.tsym);
+    }
+    
     public JCExpression makeNothingTypeDescriptor() {
         return make().Select(makeTypeDescriptorType(), 
                 names().fromString("NothingType"));
@@ -4550,6 +4555,25 @@ public abstract class AbstractTransformer implements Transformation {
         }
     }
 
+    JCExpressionStatement makeReifiedTypeParameterAssignment(
+            TypeParameter param) {
+        String descriptorName = naming.getTypeArgumentDescriptorName(param);
+        return make().Exec(make().Assign(
+                naming.makeQualIdent(naming.makeThis(), descriptorName), 
+                naming.makeQualIdent(null, descriptorName)));
+    }
+
+    JCVariableDecl makeReifiedTypeParameterVarDecl(TypeParameter param, boolean isCompanion) {
+        String descriptorName = naming.getTypeArgumentDescriptorName(param);
+        long flags = PRIVATE;
+        if(!isCompanion)
+            flags |= FINAL;
+        List<JCAnnotation> annotations = makeAtIgnore();
+        JCVariableDecl localVar = make().VarDef(make().Modifiers(flags, annotations), names().fromString(descriptorName), 
+                makeTypeDescriptorType(), null);
+        return localVar;
+    }
+    
     private Declaration getDeclarationContainer(Declaration declaration) {
         // Here we can use getContainer, we don't care about scopes
         Scope container = declaration.getContainer();
